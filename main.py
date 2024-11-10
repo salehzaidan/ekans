@@ -4,8 +4,8 @@ import random
 import pygame
 
 FRAME_RATE = 60  # frames per second
-SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600  # pixels
 CELL_SIZE = 40  # pixels
+SCREENRECT = pygame.Rect(0, 0, 800, 600)
 
 
 class Direction(enum.Enum):
@@ -21,7 +21,7 @@ class Snake(pygame.sprite.Sprite):
         self.image = pygame.Surface((CELL_SIZE, CELL_SIZE))
         self.image.fill((0, 255, 0))
         self.rect = self.image.get_rect(
-            center=((SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+            center=((SCREENRECT.width // 2, SCREENRECT.height // 2))
         )
         self.direction = random.choice(list(Direction))
         self.speed = 2  # cells per second
@@ -48,10 +48,13 @@ class Snake(pygame.sprite.Sprite):
         elif key == pygame.K_RIGHT:
             self.direction = Direction.RIGHT
 
+    def collide_wall(self):
+        return not SCREENRECT.contains(self.rect)
+
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    screen = pygame.display.set_mode((SCREENRECT.width, SCREENRECT.height))
     clock = pygame.time.Clock()
     running = True
 
@@ -70,6 +73,9 @@ def main():
                 snake.set_direction(event.key)
 
         all_sprites.update()
+
+        if snake.collide_wall():
+            running = False
 
         screen.fill((0, 0, 0))
         all_sprites.draw(screen)
