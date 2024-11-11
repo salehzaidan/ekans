@@ -21,7 +21,10 @@ class Snake(pygame.sprite.Sprite):
         self.image = pygame.Surface((CELL_SIZE, CELL_SIZE))
         self.image.fill((0, 255, 0))
         self.rect = self.image.get_rect(
-            center=((SCREENRECT.width // 2, SCREENRECT.height // 2))
+            topleft=(
+                SCREENRECT.width // (2 * CELL_SIZE) * CELL_SIZE,
+                SCREENRECT.height // (2 * CELL_SIZE) * CELL_SIZE,
+            )
         )
         self.direction = random.choice(list(Direction))
         self.speed = 2  # cells per second
