@@ -54,6 +54,26 @@ class Snake(pygame.sprite.Sprite):
     def collide_wall(self):
         return not SCREENRECT.contains(self.rect)
 
+    def eats(self, food: "Food") -> bool:
+        return self.rect.contains(food.rect)
+
+
+class Food(pygame.sprite.Sprite):
+    def __init__(self, *groups) -> None:
+        super().__init__(*groups)
+        self.image = pygame.Surface((CELL_SIZE, CELL_SIZE))
+        self.image.fill((255, 0, 0))
+        self.rect = self.image.get_rect(topleft=random_cell())
+
+    def relocate(self) -> None:
+        self.rect.topleft = random_cell()
+
+
+def random_cell() -> tuple[int, int]:
+    x = random.randint(0, (SCREENRECT.width // CELL_SIZE) - 1) * CELL_SIZE
+    y = random.randint(0, (SCREENRECT.height // CELL_SIZE) - 1) * CELL_SIZE
+    return x, y
+
 
 def main():
     pygame.init()
@@ -63,6 +83,7 @@ def main():
 
     all_sprites = pygame.sprite.Group()
     snake = Snake(all_sprites)
+    food = Food(all_sprites)
 
     while running:
         for event in pygame.event.get():
@@ -79,6 +100,9 @@ def main():
 
         if snake.collide_wall():
             running = False
+
+        if snake.eats(food):
+            food.relocate()
 
         screen.fill((0, 0, 0))
         all_sprites.draw(screen)
