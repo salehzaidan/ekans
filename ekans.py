@@ -105,6 +105,23 @@ class Snake:
         head = self.segments[0]
         return head.rect.colliderect(food.rect)
 
+    def collide(self):
+        head = self.segments[0]
+
+        for segment in self.segments[1:]:
+            if head.rect.colliderect(segment.rect):
+                return True
+
+        if (
+            head.rect.left < 0
+            or head.rect.left + CELL_SIZE > SCREEN_WIDTH
+            or head.rect.top < 0
+            or head.rect.top + CELL_SIZE > SCREEN_HEIGHT
+        ):
+            return True
+
+        return False
+
 
 def main():
     pygame.init()
@@ -132,6 +149,9 @@ def main():
         if snake.eat(food):
             snake.grow()
             food.relocate()
+
+        if snake.collide():
+            running = False
 
         screen.fill(SCREEN_COLOR)
         snake.draw(screen)
