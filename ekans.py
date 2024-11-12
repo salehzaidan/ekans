@@ -1,3 +1,5 @@
+import random
+
 import pygame
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -6,6 +8,23 @@ NUM_COLS, NUM_ROWS = SCREEN_WIDTH // CELL_SIZE, SCREEN_HEIGHT // CELL_SIZE
 
 SCREEN_COLOR = (0, 0, 0)
 SNAKE_COLOR = (0, 255, 0)
+FOOD_COLOR = (255, 0, 0)
+
+
+def random_cell():
+    col = random.randint(0, NUM_COLS - 1)
+    row = random.randint(0, NUM_ROWS - 1)
+    return (col * CELL_SIZE, row * CELL_SIZE)
+
+
+class Food:
+    def __init__(self):
+        self.image = pygame.Surface((CELL_SIZE, CELL_SIZE))
+        self.image.fill(FOOD_COLOR)
+        self.rect = self.image.get_rect(topleft=random_cell())
+
+    def draw(self, surface: pygame.Surface):
+        surface.blit(self.image, self.rect)
 
 
 class Snake:
@@ -46,6 +65,7 @@ def main():
     running = True
 
     snake = Snake()
+    food = Food()
 
     while running:
         for event in pygame.event.get():
@@ -61,6 +81,7 @@ def main():
 
         screen.fill(SCREEN_COLOR)
         snake.draw(screen)
+        food.draw(screen)
         pygame.display.flip()
         clock.tick(60)
 
