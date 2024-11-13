@@ -40,8 +40,15 @@ class Food:
     def draw(self, surface: pygame.Surface):
         surface.blit(self.image, self.rect)
 
-    def relocate(self):
-        self.rect.topleft = random_cell()
+    def relocate(self, snake: "Snake"):
+        all_pos = [
+            (col * CELL_SIZE, row * CELL_SIZE)
+            for col in range(NUM_COLS)
+            for row in range(NUM_ROWS)
+        ]
+        snake_segments = {segment.rect.topleft for segment in snake.segments}
+        available_pos = [pos for pos in all_pos if pos not in snake_segments]
+        self.rect.topleft = random.choice(available_pos)
 
 
 class Snake:
@@ -184,7 +191,7 @@ def main():
 
         if snake.eat(food):
             snake.grow()
-            food.relocate()
+            food.relocate(snake)
             score.increase()
 
         if snake.collide():
