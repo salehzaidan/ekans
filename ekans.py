@@ -17,6 +17,12 @@ SNAKE_INIT_MOVE_INTERVAL = 300
 SNAKE_MIN_MOVE_INTERVAL = 50
 SNAKE_SPEED_FACTOR = 0.95
 
+ALL_POSITIONS = [
+    (col * CELL_SIZE, row * CELL_SIZE)
+    for col in range(NUM_COLS)
+    for row in range(NUM_ROWS)
+]
+
 
 def random_cell():
     col = random.randint(0, NUM_COLS - 1)
@@ -32,22 +38,17 @@ class Direction(enum.Enum):
 
 
 class Food:
-    def __init__(self):
+    def __init__(self, *, position: tuple[int, int]):
         self.image = pygame.Surface((CELL_SIZE, CELL_SIZE))
         self.image.fill(FOOD_COLOR)
-        self.rect = self.image.get_rect(topleft=random_cell())
+        self.rect = self.image.get_rect(topleft=position)
 
     def draw(self, surface: pygame.Surface):
         surface.blit(self.image, self.rect)
 
     def relocate(self, snake: "Snake"):
-        all_pos = [
-            (col * CELL_SIZE, row * CELL_SIZE)
-            for col in range(NUM_COLS)
-            for row in range(NUM_ROWS)
-        ]
         snake_segments = {segment.rect.topleft for segment in snake.segments}
-        available_pos = [pos for pos in all_pos if pos not in snake_segments]
+        available_pos = [pos for pos in ALL_POSITIONS if pos not in snake_segments]
         self.rect.topleft = random.choice(available_pos)
 
 
@@ -67,10 +68,10 @@ class Snake:
     move_interval: int
     next_direction: Direction
 
-    def __init__(self):
+    def __init__(self, *, position: tuple[int, int]):
         self.segments = [
             Snake.Segment(
-                position=(NUM_COLS // 2 * CELL_SIZE, NUM_ROWS // 2 * CELL_SIZE),
+                position=position,
                 direction=random.choice(list(Direction)),
             )
         ]
@@ -82,39 +83,52 @@ class Snake:
         for segment in self.segments:
             segment.draw(surface)
 
+    @property
+    def head(self):
+        return self.segments[0]
+
+    @property
+    def tail(self):
+        return self.segments[-1]
+
     def move(self, dt: int):
         self.last_move_time += dt
 
         if self.last_move_time >= self.move_interval:
-            head = self.segments[0]
-            head.direction = self.next_direction
+            self.head.direction = self.next_direction
             front_pos = (
-                head.rect.left + head.direction.value[0] * CELL_SIZE,
-                head.rect.top + head.direction.value[1] * CELL_SIZE,
+                self.head.rect.left + self.head.direction.value[0] * CELL_SIZE,
+                self.head.rect.top + self.head.direction.value[1] * CELL_SIZE,
             )
-            new_head = Snake.Segment(position=front_pos, direction=head.direction)
+            new_head = Snake.Segment(position=front_pos, direction=self.head.direction)
             self.segments.pop()
             self.segments.insert(0, new_head)
             self.last_move_time = 0
 
     def change_direction(self, key: int):
-        head = self.segments[0]
-        if key in (pygame.K_UP, pygame.K_w) and head.direction != Direction.DOWN:
+        if key in (pygame.K_UP, pygame.K_w) and self.head.direction != Direction.DOWN:
             self.next_direction = Direction.UP
-        elif key in (pygame.K_DOWN, pygame.K_s) and head.direction != Direction.UP:
+        elif key in (pygame.K_DOWN, pygame.K_s) and self.head.direction != Direction.UP:
             self.next_direction = Direction.DOWN
-        elif key in (pygame.K_LEFT, pygame.K_a) and head.direction != Direction.RIGHT:
+        elif (
+            key in (pygame.K_LEFT, pygame.K_a)
+            and self.head.direction != Direction.RIGHT
+        ):
             self.next_direction = Direction.LEFT
-        elif key in (pygame.K_RIGHT, pygame.K_d) and head.direction != Direction.LEFT:
+        elif (
+            key in (pygame.K_RIGHT, pygame.K_d)
+            and self.head.direction != Direction.LEFT
+        ):
             self.next_direction = Direction.RIGHT
 
     def grow(self):
-        tail = self.segments[-1]
         back_pos = (
-            tail.rect.left - tail.direction.value[0] * CELL_SIZE,
-            tail.rect.top - tail.direction.value[1] * CELL_SIZE,
+            self.tail.rect.left - self.tail.direction.value[0] * CELL_SIZE,
+            self.tail.rect.top - self.tail.direction.value[1] * CELL_SIZE,
         )
-        self.segments.append(Snake.Segment(position=back_pos, direction=tail.direction))
+        self.segments.append(
+            Snake.Segment(position=back_pos, direction=self.tail.direction)
+        )
         self.move_interval = max(
             SNAKE_MIN_MOVE_INTERVAL, int(self.move_interval * SNAKE_SPEED_FACTOR)
         )
@@ -124,17 +138,15 @@ class Snake:
         return head.rect.colliderect(food.rect)
 
     def collide(self):
-        head = self.segments[0]
-
         for segment in self.segments[1:]:
-            if head.rect.colliderect(segment.rect):
+            if self.head.rect.colliderect(segment.rect):
                 return True
 
         if (
-            head.rect.left < 0
-            or head.rect.left + CELL_SIZE > SCREEN_WIDTH
-            or head.rect.top < 0
-            or head.rect.top + CELL_SIZE > SCREEN_HEIGHT
+            self.head.rect.left < 0
+            or self.head.rect.left + CELL_SIZE > SCREEN_WIDTH
+            or self.head.rect.top < 0
+            or self.head.rect.top + CELL_SIZE > SCREEN_HEIGHT
         ):
             return True
 
@@ -168,8 +180,12 @@ def main():
     clock = pygame.time.Clock()
     running = True
 
-    snake = Snake()
-    food = Food()
+    snake = Snake(position=(NUM_COLS // 2 * CELL_SIZE, NUM_ROWS // 2 * CELL_SIZE))
+    food = Food(
+        position=random.choice(
+            [pos for pos in ALL_POSITIONS if pos != snake.head.rect.topleft]
+        )
+    )
     score = Score()
 
     while running:
