@@ -12,7 +12,9 @@ SCREEN_COLOR = (0, 0, 0)
 SNAKE_COLOR = (0, 255, 0)
 FOOD_COLOR = (255, 0, 0)
 
-SNAKE_MOVE_INTERVAL = 300
+SNAKE_INIT_MOVE_INTERVAL = 300
+SNAKE_MIN_MOVE_INTERVAL = 50
+SNAKE_SPEED_FACTOR = 0.95
 
 
 def random_cell():
@@ -54,6 +56,7 @@ class Snake:
 
     segments: list[Segment]
     last_move_time: int
+    move_interval: int
 
     def __init__(self):
         self.segments = [
@@ -63,6 +66,7 @@ class Snake:
             )
         ]
         self.last_move_time = 0
+        self.move_interval = SNAKE_INIT_MOVE_INTERVAL
 
     def draw(self, surface: pygame.Surface):
         for segment in self.segments:
@@ -71,7 +75,7 @@ class Snake:
     def move(self, dt: int):
         self.last_move_time += dt
 
-        if self.last_move_time >= SNAKE_MOVE_INTERVAL:
+        if self.last_move_time >= self.move_interval:
             head = self.segments[0]
             front_pos = (
                 head.rect.left + head.direction.value[0] * CELL_SIZE,
@@ -100,6 +104,9 @@ class Snake:
             tail.rect.top - tail.direction.value[1] * CELL_SIZE,
         )
         self.segments.append(Snake.Segment(position=back_pos, direction=tail.direction))
+        self.move_interval = max(
+            SNAKE_MIN_MOVE_INTERVAL, int(self.move_interval * SNAKE_SPEED_FACTOR)
+        )
 
     def eat(self, food: Food):
         head = self.segments[0]
