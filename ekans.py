@@ -92,13 +92,13 @@ class Snake:
 
     def change_direction(self, key: int):
         head = self.segments[0]
-        if key == pygame.K_UP and head.direction != Direction.DOWN:
+        if key in (pygame.K_UP, pygame.K_w) and head.direction != Direction.DOWN:
             self.next_direction = Direction.UP
-        elif key == pygame.K_DOWN and head.direction != Direction.UP:
+        elif key in (pygame.K_DOWN, pygame.K_s) and head.direction != Direction.UP:
             self.next_direction = Direction.DOWN
-        elif key == pygame.K_LEFT and head.direction != Direction.RIGHT:
+        elif key in (pygame.K_LEFT, pygame.K_a) and head.direction != Direction.RIGHT:
             self.next_direction = Direction.LEFT
-        elif key == pygame.K_RIGHT and head.direction != Direction.LEFT:
+        elif key in (pygame.K_RIGHT, pygame.K_d) and head.direction != Direction.LEFT:
             self.next_direction = Direction.RIGHT
 
     def grow(self):
@@ -171,7 +171,10 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            elif event.type == pygame.KEYDOWN and event.key in (
+                pygame.K_ESCAPE,
+                pygame.K_q,
+            ):
                 running = False
 
             if event.type == pygame.KEYDOWN:
