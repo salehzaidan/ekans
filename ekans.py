@@ -11,6 +11,7 @@ NUM_COLS, NUM_ROWS = SCREEN_WIDTH // CELL_SIZE, SCREEN_HEIGHT // CELL_SIZE
 SCREEN_COLOR = (0, 0, 0)
 SNAKE_COLOR = (0, 255, 0)
 FOOD_COLOR = (255, 0, 0)
+SCORE_COLOR = (255, 255, 255)
 
 SNAKE_INIT_MOVE_INTERVAL = 300
 SNAKE_MIN_MOVE_INTERVAL = 50
@@ -133,6 +134,27 @@ class Snake:
         return False
 
 
+class Score:
+    value: int
+
+    def __init__(self):
+        self.value = 0
+        self.font = pygame.font.Font(None, 32)
+        self.update_image()
+
+    def draw(self, surface: pygame.Surface):
+        surface.blit(self.image, self.rect)
+
+    def increase(self):
+        self.value += 1
+        self.update_image()
+
+    def update_image(self):
+        msg = f"Score: {self.value}"
+        self.image = self.font.render(msg, 0, SCORE_COLOR)
+        self.rect = self.image.get_rect(topleft=(16, SCREEN_HEIGHT - 40))
+
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -141,6 +163,7 @@ def main():
 
     snake = Snake()
     food = Food()
+    score = Score()
 
     while running:
         dt = clock.tick(FRAME_RATE)
@@ -159,6 +182,7 @@ def main():
         if snake.eat(food):
             snake.grow()
             food.relocate()
+            score.increase()
 
         if snake.collide():
             running = False
@@ -166,6 +190,7 @@ def main():
         screen.fill(SCREEN_COLOR)
         snake.draw(screen)
         food.draw(screen)
+        score.draw(screen)
         pygame.display.flip()
 
     pygame.quit()
