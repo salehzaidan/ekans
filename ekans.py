@@ -57,6 +57,7 @@ class Snake:
     segments: list[Segment]
     last_move_time: int
     move_interval: int
+    next_direction: Direction
 
     def __init__(self):
         self.segments = [
@@ -67,6 +68,7 @@ class Snake:
         ]
         self.last_move_time = 0
         self.move_interval = SNAKE_INIT_MOVE_INTERVAL
+        self.next_direction = self.segments[0].direction
 
     def draw(self, surface: pygame.Surface):
         for segment in self.segments:
@@ -77,6 +79,7 @@ class Snake:
 
         if self.last_move_time >= self.move_interval:
             head = self.segments[0]
+            head.direction = self.next_direction
             front_pos = (
                 head.rect.left + head.direction.value[0] * CELL_SIZE,
                 head.rect.top + head.direction.value[1] * CELL_SIZE,
@@ -89,13 +92,13 @@ class Snake:
     def change_direction(self, key: int):
         head = self.segments[0]
         if key == pygame.K_UP and head.direction != Direction.DOWN:
-            head.direction = Direction.UP
+            self.next_direction = Direction.UP
         elif key == pygame.K_DOWN and head.direction != Direction.UP:
-            head.direction = Direction.DOWN
+            self.next_direction = Direction.DOWN
         elif key == pygame.K_LEFT and head.direction != Direction.RIGHT:
-            head.direction = Direction.LEFT
+            self.next_direction = Direction.LEFT
         elif key == pygame.K_RIGHT and head.direction != Direction.LEFT:
-            head.direction = Direction.RIGHT
+            self.next_direction = Direction.RIGHT
 
     def grow(self):
         tail = self.segments[-1]
