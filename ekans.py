@@ -103,19 +103,13 @@ class Snake:
             self.last_move_time = 0
 
     def change_direction(self, key: int):
-        if key in (pygame.K_UP, pygame.K_w) and self.head.direction != Direction.DOWN:
+        if key == 0 and self.head.direction != Direction.DOWN:
             self.next_direction = Direction.UP
-        elif key in (pygame.K_DOWN, pygame.K_s) and self.head.direction != Direction.UP:
+        elif key == 1 and self.head.direction != Direction.UP:
             self.next_direction = Direction.DOWN
-        elif (
-            key in (pygame.K_LEFT, pygame.K_a)
-            and self.head.direction != Direction.RIGHT
-        ):
+        elif key == 2 and self.head.direction != Direction.RIGHT:
             self.next_direction = Direction.LEFT
-        elif (
-            key in (pygame.K_RIGHT, pygame.K_d)
-            and self.head.direction != Direction.LEFT
-        ):
+        elif key == 3 and self.head.direction != Direction.LEFT:
             self.next_direction = Direction.RIGHT
 
     def grow(self):
@@ -188,13 +182,6 @@ class EkansEnv(gym.Env):
             0, 2, (NUM_ROWS, NUM_COLS), dtype=np.int8
         )
         self.action_space = gym.spaces.Discrete(4)
-        self.action_to_key = [
-            pygame.K_UP,
-            pygame.K_DOWN,
-            pygame.K_LEFT,
-            pygame.K_RIGHT,
-        ]
-
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
 
@@ -228,8 +215,7 @@ class EkansEnv(gym.Env):
             dt = self.render_frame()
             assert type(dt) is int
 
-        if 0 <= action <= len(self.action_to_key):
-            self.snake.change_direction(self.action_to_key[action])
+        self.snake.change_direction(action)
 
         self.snake.move(dt)
         terminated = self.snake.collide()
@@ -299,17 +285,46 @@ gym.register("Ekans", "ekans:EkansEnv")
 
 
 def main():
-    env = gym.make("Ekans")
-    obs, _ = env.reset()
-    episode_over = False
+    action = -1
 
-    while not episode_over:
-        action = env.action_space.sample()
-        obs, reward, terminated, _, _ = env.step(action)
-        env.render()
-        episode_over = terminated
-        print(f"Observation:\n{obs}")
-        print(f"Reward: {reward:.3f}")
+    def register_input():
+        nonlocal action, quit, restart
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_UP, pygame.K_w):
+                    action = 0
+                elif event.key in (pygame.K_DOWN, pygame.K_s):
+                    action = 1
+                elif event.key in (pygame.K_LEFT, pygame.K_a):
+                    action = 2
+                elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                    action = 3
+                elif event.key == pygame.K_RETURN:
+                    restart = True
+                elif event.key in (pygame.K_ESCAPE, pygame.K_q):
+                    quit = True
+
+            elif event.type == pygame.QUIT:
+                quit = True
+
+    env = gym.make("Ekans", render_mode="human")
+    quit = False
+
+    while not quit:
+        env.reset()
+        total_reward = 0.0
+        steps = 0
+        restart = False
+
+        while True:
+            register_input()
+            s, r, terminated, truncated, info = env.step(action)
+            total_reward += r  # type: ignore
+            print(f"Step={steps}   Total Reward={total_reward:+0.2f}")
+            steps += 1
+            if terminated or truncated or restart or quit:
+                break
 
     env.close()
 
