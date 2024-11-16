@@ -179,7 +179,9 @@ class Score:
 
 class EkansEnv(gym.Env):
     def __init__(self):
-        self.observation_space = gym.spaces.Box(0, 2, (NUM_ROWS, NUM_COLS))
+        self.observation_space = gym.spaces.Box(
+            0, 2, (NUM_ROWS, NUM_COLS), dtype=np.int8
+        )
         self.action_space = gym.spaces.Discrete(4)
         self.action_to_key = [
             pygame.K_UP,
@@ -204,7 +206,8 @@ class EkansEnv(gym.Env):
         self.score = Score()
         self.reward = 0.0
 
-    def reset(self, *, seed: int | None = None):
+    def reset(self, *, seed: int | None = None, options: dict | None = None):
+        _ = options
         super().reset(seed=seed)
         self.snake.reset(
             (NUM_COLS // 2 * CELL_SIZE, NUM_ROWS // 2 * CELL_SIZE),
@@ -256,8 +259,11 @@ class EkansEnv(gym.Env):
         return obs
 
 
+gym.register("Ekans", "ekans:EkansEnv")
+
+
 def main():
-    env = EkansEnv()
+    env = gym.make("Ekans")
     obs, _ = env.reset()
     episode_over = False
 
