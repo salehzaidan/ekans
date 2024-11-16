@@ -161,24 +161,29 @@ class Score:
 
     def __init__(self):
         self.value = 0
-        self.font = pygame.font.Font(None, 32)
-        self.update_image()
+        self.font = None
 
     def draw(self, surface: pygame.Surface):
+        if self.font is None:
+            self.font = pygame.font.Font(None, 32)
+
+        self.update_image()
         surface.blit(self.image, self.rect)
 
     def increase(self):
         self.value += 1
-        self.update_image()
 
     def update_image(self):
+        assert self.font is not None
         msg = f"Score: {self.value}"
         self.image = self.font.render(msg, 0, SCORE_COLOR)
         self.rect = self.image.get_rect(topleft=(16, SCREEN_HEIGHT - 40))
 
 
 class EkansEnv(gym.Env):
-    def __init__(self):
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": FRAME_RATE}
+
+    def __init__(self, render_mode: str | None = None):
         self.observation_space = gym.spaces.Box(
             0, 2, (NUM_ROWS, NUM_COLS), dtype=np.int8
         )
@@ -190,9 +195,15 @@ class EkansEnv(gym.Env):
             pygame.K_RIGHT,
         ]
 
-        pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        self.clock = pygame.time.Clock()
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+        self.render_mode = render_mode
+
+        self.screen = None
+        self.clock = None
+
+    def reset(self, *, seed: int | None = None, options: dict | None = None):
+        _ = options
+        super().reset(seed=seed)
         self.snake = Snake(
             position=(NUM_COLS // 2 * CELL_SIZE, NUM_ROWS // 2 * CELL_SIZE),
             rng=self.np_random,
@@ -206,19 +217,20 @@ class EkansEnv(gym.Env):
         self.score = Score()
         self.reward = 0.0
 
-    def reset(self, *, seed: int | None = None, options: dict | None = None):
-        _ = options
-        super().reset(seed=seed)
-        self.snake.reset(
-            (NUM_COLS // 2 * CELL_SIZE, NUM_ROWS // 2 * CELL_SIZE),
-            self.np_random.choice(list(Direction)),  # type: ignore
-        )
-        self.food.relocate(self.snake)
+        if self.render_mode == "human":
+            self.render_frame()
+
         return self.get_observation(), {}
 
     def step(self, action: int):
-        dt = self.clock.tick(FRAME_RATE)
-        self.snake.change_direction(self.action_to_key[action])
+        dt = 1000 // FRAME_RATE
+        if self.render_mode == "human":
+            dt = self.render_frame()
+            assert type(dt) is int
+
+        if 0 <= action <= len(self.action_to_key):
+            self.snake.change_direction(self.action_to_key[action])
+
         self.snake.move(dt)
         terminated = self.snake.collide()
         truncated = False
@@ -233,14 +245,38 @@ class EkansEnv(gym.Env):
         return self.get_observation(), self.reward, terminated, truncated, {}
 
     def render(self):
-        self.screen.fill(SCREEN_COLOR)
-        self.snake.draw(self.screen)
-        self.food.draw(self.screen)
-        self.score.draw(self.screen)
-        pygame.display.flip()
+        if self.render_mode == "rgb_array":
+            return self.render_frame()
+
+    def render_frame(self):
+        pygame.font.init()
+
+        if self.screen is None and self.render_mode == "human":
+            pygame.init()
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        if self.clock is None and self.render_mode == "human":
+            self.clock = pygame.time.Clock()
+
+        canvas = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        canvas.fill(SCREEN_COLOR)
+        self.snake.draw(canvas)
+        self.food.draw(canvas)
+
+        if self.render_mode == "human":
+            self.score.draw(canvas)
+            assert self.screen is not None and self.clock is not None
+            self.screen.blit(canvas, canvas.get_rect())
+            pygame.display.flip()
+            return self.clock.tick(FRAME_RATE)
+        else:
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
+            )
 
     def close(self):
-        pygame.quit()
+        if self.screen is not None:
+            pygame.quit()
 
     def get_observation(self):
         obs = np.zeros((NUM_ROWS, NUM_COLS), dtype=np.int8)
