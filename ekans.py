@@ -1,6 +1,7 @@
 import enum
-import random
 
+import gymnasium as gym
+import numpy as np
 import pygame
 
 FRAME_RATE = 60
@@ -24,12 +25,6 @@ ALL_POSITIONS = [
 ]
 
 
-def random_cell():
-    col = random.randint(0, NUM_COLS - 1)
-    row = random.randint(0, NUM_ROWS - 1)
-    return (col * CELL_SIZE, row * CELL_SIZE)
-
-
 class Direction(enum.Enum):
     UP = (0, -1)
     DOWN = (0, 1)
@@ -38,10 +33,11 @@ class Direction(enum.Enum):
 
 
 class Food:
-    def __init__(self, *, position: tuple[int, int]):
+    def __init__(self, *, position: tuple[int, int], rng: np.random.Generator):
         self.image = pygame.Surface((CELL_SIZE, CELL_SIZE))
         self.image.fill(FOOD_COLOR)
         self.rect = self.image.get_rect(topleft=position)
+        self.rng = rng
 
     def draw(self, surface: pygame.Surface):
         surface.blit(self.image, self.rect)
@@ -49,7 +45,7 @@ class Food:
     def relocate(self, snake: "Snake"):
         snake_segments = {segment.rect.topleft for segment in snake.segments}
         available_pos = [pos for pos in ALL_POSITIONS if pos not in snake_segments]
-        self.rect.topleft = random.choice(available_pos)
+        self.rect.topleft = self.rng.choice(available_pos)
 
 
 class Snake:
@@ -68,16 +64,17 @@ class Snake:
     move_interval: int
     next_direction: Direction
 
-    def __init__(self, *, position: tuple[int, int]):
+    def __init__(self, *, position: tuple[int, int], rng: np.random.Generator):
         self.segments = [
             Snake.Segment(
                 position=position,
-                direction=random.choice(list(Direction)),
+                direction=rng.choice(list(Direction)),  # type: ignore
             )
         ]
         self.last_move_time = 0
         self.move_interval = SNAKE_INIT_MOVE_INTERVAL
         self.next_direction = self.segments[0].direction
+        self.rng = rng
 
     def draw(self, surface: pygame.Surface):
         for segment in self.segments:
@@ -152,6 +149,12 @@ class Snake:
 
         return False
 
+    def reset(self, position: tuple[int, int], direction: Direction):
+        self.segments = [Snake.Segment(position=position, direction=direction)]
+        self.last_move_time = 0
+        self.move_interval = SNAKE_INIT_MOVE_INTERVAL
+        self.next_direction = self.segments[0].direction
+
 
 class Score:
     value: int
@@ -174,52 +177,99 @@ class Score:
         self.rect = self.image.get_rect(topleft=(16, SCREEN_HEIGHT - 40))
 
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    clock = pygame.time.Clock()
-    running = True
+class EkansEnv(gym.Env):
+    def __init__(self):
+        self.observation_space = gym.spaces.Box(0, 2, (NUM_ROWS, NUM_COLS))
+        self.action_space = gym.spaces.Discrete(4)
+        self.action_to_key = [
+            pygame.K_UP,
+            pygame.K_DOWN,
+            pygame.K_LEFT,
+            pygame.K_RIGHT,
+        ]
 
-    snake = Snake(position=(NUM_COLS // 2 * CELL_SIZE, NUM_ROWS // 2 * CELL_SIZE))
-    food = Food(
-        position=random.choice(
-            [pos for pos in ALL_POSITIONS if pos != snake.head.rect.topleft]
+        pygame.init()
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.clock = pygame.time.Clock()
+        self.snake = Snake(
+            position=(NUM_COLS // 2 * CELL_SIZE, NUM_ROWS // 2 * CELL_SIZE),
+            rng=self.np_random,
         )
-    )
-    score = Score()
+        self.food = Food(
+            position=self.np_random.choice(
+                [pos for pos in ALL_POSITIONS if pos != self.snake.head.rect.topleft]
+            ),
+            rng=self.np_random,
+        )
+        self.score = Score()
+        self.reward = 0.0
 
-    while running:
-        dt = clock.tick(FRAME_RATE)
+    def reset(self, *, seed: int | None = None):
+        super().reset(seed=seed)
+        self.snake.reset(
+            (NUM_COLS // 2 * CELL_SIZE, NUM_ROWS // 2 * CELL_SIZE),
+            self.np_random.choice(list(Direction)),  # type: ignore
+        )
+        self.food.relocate(self.snake)
+        return self.get_observation(), {}
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN and event.key in (
-                pygame.K_ESCAPE,
-                pygame.K_q,
-            ):
-                running = False
+    def step(self, action: int):
+        dt = self.clock.tick(FRAME_RATE)
+        self.snake.change_direction(self.action_to_key[action])
+        self.snake.move(dt)
+        terminated = self.snake.collide()
+        truncated = False
+        self.reward -= 0.01
 
-            if event.type == pygame.KEYDOWN:
-                snake.change_direction(event.key)
+        if self.snake.eat(self.food):
+            self.reward += self.score.value
+            self.snake.grow()
+            self.food.relocate(self.snake)
+            self.score.increase()
 
-        snake.move(dt)
+        return self.get_observation(), self.reward, terminated, truncated, {}
 
-        if snake.eat(food):
-            snake.grow()
-            food.relocate(snake)
-            score.increase()
-
-        if snake.collide():
-            running = False
-
-        screen.fill(SCREEN_COLOR)
-        snake.draw(screen)
-        food.draw(screen)
-        score.draw(screen)
+    def render(self):
+        self.screen.fill(SCREEN_COLOR)
+        self.snake.draw(self.screen)
+        self.food.draw(self.screen)
+        self.score.draw(self.screen)
         pygame.display.flip()
 
-    pygame.quit()
+    def close(self):
+        pygame.quit()
+
+    def get_observation(self):
+        obs = np.zeros((NUM_ROWS, NUM_COLS), dtype=np.int8)
+
+        for segment in self.snake.segments:
+            x = segment.rect.left // CELL_SIZE
+            y = segment.rect.top // CELL_SIZE
+
+            if 0 <= x < NUM_COLS and 0 <= y < NUM_ROWS:
+                obs[y][x] = 1
+
+        x = self.food.rect.left // CELL_SIZE
+        y = self.food.rect.top // CELL_SIZE
+        obs[y][x] = 2
+
+        return obs
+
+
+def main():
+    env = EkansEnv()
+    obs, _ = env.reset()
+    episode_over = False
+
+    while not episode_over:
+        action = env.action_space.sample()
+        obs, reward, terminated, _, _ = env.step(action)
+        env.render()
+        episode_over = terminated
+        print(f"Observation:\n{obs}")
+        print(f"Reward: {reward:.3f}")
+
+    env.close()
 
 
 if __name__ == "__main__":
