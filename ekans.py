@@ -234,10 +234,10 @@ class EkansEnv(gym.Env):
         self.snake.move(dt)
         terminated = self.snake.collide()
         truncated = False
-        self.reward -= 0.01
+        self.reward = -0.01
 
         if self.snake.eat(self.food):
-            self.reward += self.score.value
+            self.reward += 1
             self.snake.grow()
             self.food.relocate(self.snake)
             self.score.increase()
