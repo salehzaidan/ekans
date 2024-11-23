@@ -227,6 +227,8 @@ class EkansEnv(gym.Env):
             self.snake.grow()
             self.food.relocate(self.snake)
             self.score.increase()
+        elif terminated:
+            self.reward -= 10
 
         return self.get_observation(), self.reward, terminated, truncated, {}
 

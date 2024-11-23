@@ -25,7 +25,7 @@ An 800x600 grid array with cell values ranging from 0 to 2, defined as follows:
 
 ## Rewards
 
-The reward is -0.01 every frame and +1 for every food eaten by the snake.
+The reward is -0.01 every frame, +1 for every food eaten by the snake, and -10 if the snake collides with the wall or its own body.
 
 ## Starting State
 
