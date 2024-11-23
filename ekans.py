@@ -273,23 +273,23 @@ class EkansEnv(gym.Env):
     def get_observation(self):
         obs = np.zeros((NUM_ROWS, NUM_COLS), dtype=np.int8)
 
-        x = self.snake.head.rect.left // CELL_SIZE
-        y = self.snake.head.rect.top // CELL_SIZE
+        x = (self.snake.head.rect.left - 1) // CELL_SIZE
+        y = (self.snake.head.rect.top - 1) // CELL_SIZE
         obs[y][x] = 1
 
         for segment in self.snake.segments[1:-1]:
-            x = segment.rect.left // CELL_SIZE
-            y = segment.rect.top // CELL_SIZE
+            x = (segment.rect.left - 1) // CELL_SIZE
+            y = (segment.rect.top - 1) // CELL_SIZE
 
             if 0 <= x < NUM_COLS and 0 <= y < NUM_ROWS:
                 obs[y][x] = 2
 
-        x = self.snake.tail.rect.left // CELL_SIZE
-        y = self.snake.tail.rect.top // CELL_SIZE
+        x = (self.snake.tail.rect.left - 1) // CELL_SIZE
+        y = (self.snake.tail.rect.top - 1) // CELL_SIZE
         obs[y][x] = 3
 
-        x = self.food.rect.left // CELL_SIZE
-        y = self.food.rect.top // CELL_SIZE
+        x = (self.food.rect.left - 1) // CELL_SIZE
+        y = (self.food.rect.top - 1) // CELL_SIZE
         obs[y][x] = 4
 
         return obs
