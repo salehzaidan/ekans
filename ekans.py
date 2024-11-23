@@ -24,6 +24,10 @@ ALL_POSITIONS = [
     for row in range(NUM_ROWS)
 ]
 
+FRAME_REWARD = -0.01
+EAT_REWARD = 1.0
+COLLIDE_REWARD = -10.0
+
 
 class Direction(enum.Enum):
     UP = (0, -1)
@@ -179,7 +183,7 @@ class EkansEnv(gym.Env):
 
     def __init__(self, render_mode: str | None = None):
         self.observation_space = gym.spaces.Box(
-            0, 2, (NUM_ROWS, NUM_COLS), dtype=np.int8
+            0, 4, (NUM_ROWS, NUM_COLS), dtype=np.int8
         )
         self.action_space = gym.spaces.Discrete(4)
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -220,15 +224,15 @@ class EkansEnv(gym.Env):
         self.snake.move(dt)
         terminated = self.snake.collide()
         truncated = False
-        self.reward = -0.01
+        self.reward = FRAME_REWARD
 
         if self.snake.eat(self.food):
-            self.reward += 1
+            self.reward += EAT_REWARD
             self.snake.grow()
             self.food.relocate(self.snake)
             self.score.increase()
         elif terminated:
-            self.reward -= 10
+            self.reward -= COLLIDE_REWARD
 
         return self.get_observation(), self.reward, terminated, truncated, {}
 
@@ -269,16 +273,24 @@ class EkansEnv(gym.Env):
     def get_observation(self):
         obs = np.zeros((NUM_ROWS, NUM_COLS), dtype=np.int8)
 
-        for segment in self.snake.segments:
+        x = self.snake.head.rect.left // CELL_SIZE
+        y = self.snake.head.rect.top // CELL_SIZE
+        obs[y][x] = 1
+
+        for segment in self.snake.segments[1:-1]:
             x = segment.rect.left // CELL_SIZE
             y = segment.rect.top // CELL_SIZE
 
             if 0 <= x < NUM_COLS and 0 <= y < NUM_ROWS:
-                obs[y][x] = 1
+                obs[y][x] = 2
+
+        x = self.snake.tail.rect.left // CELL_SIZE
+        y = self.snake.tail.rect.top // CELL_SIZE
+        obs[y][x] = 3
 
         x = self.food.rect.left // CELL_SIZE
         y = self.food.rect.top // CELL_SIZE
-        obs[y][x] = 2
+        obs[y][x] = 4
 
         return obs
 

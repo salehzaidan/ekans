@@ -17,11 +17,13 @@ The actions are to change the snake direction:
 
 ## Observation Space
 
-An 800x600 grid array with cell values ranging from 0 to 2, defined as follows:
+An 20x15 grid array with cell values ranging from 0 to 2, defined as follows:
 
 - 0: Empty cell
-- 1: Snake segment
-- 2: Food
+- 1: Snake head
+- 2: Snake segment
+- 3: Snake tail
+- 4: Food
 
 ## Rewards
 
